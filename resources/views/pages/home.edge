@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+  </head>
+  <body>
+    <div class="bg-gray-100">
+      <div class="max-w-screen-lg w-full mx-auto p-10 flex flex-col space-y-8">
+        <img src="{{ asset('resources/images/logo.svg') }}" alt="Logo" class="mx-auto py-10" />
+      </div>
+    </div>
+    <div class="max-w-screen-md w-full mx-auto p-10 flex flex-col space-y-10">
+      <div class="flex flex-col space-y-10 py-10">
+        <h1 class="text-5xl font-medium tracking-tight">
+          Lotto Telegram Bot
+        </h1>
+        <p class="">
+          Ein Telegram Bot, der dir die aktuellen Lottozahlen zusendet. Einfach den Bot mit dem Befehl <code class="p-1 px-2 bg-gray-100 rounded">/start</code>&nbsp;anschreiben und schon erhältst du die aktuellen Lottozahlen, immer kurz nach der Ziehung. Berücksichtigt werden die Ziehungen von <b>Lotto 6 aus 49</b>, <b>Eurojackpot</b>.
+        </p>
+        <p>
+          Hier geht es zum Bot: <a href="https://t.me/TottoLottoBot" class="text-blue-500">t.me/TottoLottoBot</a>
+        </p>
+        <p>
+          Der Bot ist Open Source und kann auf GitHub eingesehen werden: <a href="" class="text-blue-500">GitHub</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
