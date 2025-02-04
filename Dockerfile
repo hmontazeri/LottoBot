@@ -1,23 +1,29 @@
-# Use the official Node.js image as the base image
-FROM node:lts
+FROM node:20.12.2-alpine3.18 AS base
 
-# Set the working directory
+# All deps stage
+FROM base AS deps
 WORKDIR /app
+ADD package.json package-lock.json ./
+RUN npm ci
 
-# Copy package.json and package-lock.json
-COPY package*.json ./
+# Production only deps stage
+FROM base AS production-deps
+WORKDIR /app
+ADD package.json package-lock.json ./
+RUN npm ci --omit=dev
 
-# Install dependencies
-RUN npm install
+# Build stage
+FROM base AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules /app/node_modules
+ADD . .
+RUN node ace build
 
-# Copy the rest of the application code
-COPY . .
-
-# Build the AdonisJS application
-RUN npm run build
-
-# Expose the port the app runs on
-EXPOSE 3333
-
-# Start the application
-CMD ["node", "build/bin/server.js"]
+# Production stage
+FROM base
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=production-deps /app/node_modules /app/node_modules
+COPY --from=build /app/build /app
+EXPOSE 8080
+CMD ["node", "./bin/server.js"]
