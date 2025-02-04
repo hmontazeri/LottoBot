@@ -53,6 +53,13 @@ cron.schedule('30 20 * * 2,5', async () => {
   // 2 = Dienstag, 5 = Freitag
   await new TelegramsController().sendLottoResults()
 })
+
+// const tasks = cron.getTasks()
+
+// for (let [key, value] of tasks.entries()) {
+//   console.log('key', key)
+//   console.log('value', value)
+// }
 /**
  * Named middleware collection must be explicitly assigned to
  * the routes or the routes group.
