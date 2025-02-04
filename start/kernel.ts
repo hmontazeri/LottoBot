@@ -10,6 +10,7 @@
 
 import router from '@adonisjs/core/services/router'
 import server from '@adonisjs/core/services/server'
+import cron from 'node-cron'
 
 /**
  * The error handler is used to convert an exception
@@ -38,6 +39,20 @@ router.use([
   () => import('@adonisjs/shield/shield_middleware'),
 ])
 
+// setup node cron
+import TelegramsController from '#controllers/telegrams_controller'
+
+// Lotto 6aus49 nur am Mittwoch & Samstag um 19:30 Uhr senden
+cron.schedule('30 19 * * 3,6', async () => {
+  // 3 = Mittwoch, 6 = Samstag
+  await new TelegramsController().sendLottoResults()
+})
+
+// Eurojackpot nur am Dienstag & Freitag um 20:30 Uhr senden
+cron.schedule('30 20 * * 2,5', async () => {
+  // 2 = Dienstag, 5 = Freitag
+  await new TelegramsController().sendLottoResults()
+})
 /**
  * Named middleware collection must be explicitly assigned to
  * the routes or the routes group.
