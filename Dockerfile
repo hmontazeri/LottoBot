@@ -1,4 +1,4 @@
-FROM node:20.12.2-alpine3.18 AS base
+FROM node:lts-alpine AS base
 
 # All deps stage
 FROM base AS deps
