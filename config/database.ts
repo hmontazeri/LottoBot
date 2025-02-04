@@ -1,5 +1,6 @@
 import app from '@adonisjs/core/services/app'
 import { defineConfig } from '@adonisjs/lucid'
+import env from '#start/env'
 
 const dbConfig = defineConfig({
   connection: 'sqlite',
@@ -7,7 +8,10 @@ const dbConfig = defineConfig({
     sqlite: {
       client: 'better-sqlite3',
       connection: {
-        filename: app.tmpPath('db.sqlite3'),
+        filename:
+          env.get('NODE_ENV') === 'production'
+            ? '/sqlite/db.sqlite3' // ✅ Store outside the app folder in Docker
+            : app.tmpPath('db.sqlite3'), // Local development uses temp path
       },
       useNullAsDefault: true,
       migrations: {
