@@ -27,6 +27,13 @@ export default class TelegramsController {
     } else if (text === '/end') {
       await this.unsubscribeUser(chatId)
       await this.sendMessage(chatId, '❌ Du erhältst keine Lottozahlen mehr.')
+    } else if (text === '/time') {
+      await this.sendMessage(
+        chatId,
+        `Aktuelle Serverzeit: ${new Date().toLocaleString('de-DE', {
+          timeZone: 'Europe/Berlin',
+        })}`
+      )
     }
 
     return response.json({ status: 'ok' })
