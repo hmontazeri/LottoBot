@@ -75,16 +75,16 @@ export default class TelegramsController {
     if (today === 3 || today === 6) {
       // Mittwoch (3) oder Samstag (6)
       const result = await this.get6outOf49Numbers()
-      message = `Ziehungsdatum: ${result.drawDate}\nLottozahlen: ${result.lottoNumbers.join(', ')}\nZusatznummer: ${result.additionalNumber}\nSpiel 77: ${result.game77}\nSuper 6: ${result.super6}`
+      message = `Ziehungsdatum: ${result.drawDate}\n6 aus 49 Lottozahlen: ${result.lottoNumbers.join(', ')}\nSuperzahl: ${result.additionalNumber}\n\nSpiel 77: ${result.game77}\nSuper 6: ${result.super6}`
     } else if (today === 2 || today === 5) {
       // Dienstag (2) oder Freitag (5)
       const euroJackpotResult = await this.getEuroJackpotNumbers()
-      message = `Ziehungsdatum: ${euroJackpotResult.ziehungsdatum}\nEuroJackpot Zahlen: ${euroJackpotResult.mainNumbers.join(', ')}\nEurozahlen: ${euroJackpotResult.eurozahlen.join(', ')}`
+      message = `Ziehungsdatum: ${euroJackpotResult.ziehungsdatum}\nEuroJackpot Gewinnzahlen: ${euroJackpotResult.mainNumbers.join(', ')}\nEurozahlen: ${euroJackpotResult.eurozahlen.join(', ')}`
     }
 
     if (message) {
       for (const user of users) {
-        await this.sendMessage(user.telegram_id, `📢 Deine Lottozahlen:\n\n${message}`)
+        await this.sendMessage(user.telegram_id, `📢 Die Lottozahlen:\n\n${message}`)
       }
     }
   }
