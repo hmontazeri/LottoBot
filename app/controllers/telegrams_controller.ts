@@ -4,6 +4,16 @@ import axios from 'axios'
 import User from '#models/user'
 
 const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`
+
+const launchOptions: puppeteer.LaunchOptions & { args: string[]; executablePath?: string } = {
+  headless: true,
+  args: ['--no-sandbox', '--disable-setuid-sandbox'],
+}
+
+if (process.env.NODE_ENV === 'production') {
+  launchOptions.executablePath = process.env.CHROME_BIN || '/usr/bin/chromium-browser'
+}
+
 export default class TelegramsController {
   // webhook method to handle incoming Telegram messages
   public async webhook({ request, response }: HttpContext) {
@@ -98,9 +108,7 @@ export default class TelegramsController {
 
   private async get6outOf49Numbers() {
     // samstags um 19:25 Uhr sowie mittwochs um 18:25 Uhr
-    const browser = await puppeteer.launch({
-      headless: true, // Use "new" to prevent deprecation warnings
-    })
+    const browser = await puppeteer.launch(launchOptions)
     const page = await browser.newPage()
 
     // 🚀 Set User-Agent to mimic a real browser
@@ -162,9 +170,7 @@ export default class TelegramsController {
 
   private async getEuroJackpotNumbers() {
     // jeden Dienstag und Freitag gegen 20 Uhr
-    const browser = await puppeteer.launch({
-      headless: true,
-    })
+    const browser = await puppeteer.launch(launchOptions)
     const page = await browser.newPage()
 
     // 🚀 Set User-Agent to mimic a real browser

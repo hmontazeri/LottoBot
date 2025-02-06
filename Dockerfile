@@ -1,8 +1,18 @@
 # Base image
 FROM node:lts-alpine AS base
 
-# Install system dependencies (including SQLite3)
-RUN apk add --no-cache sqlite
+# Install system dependencies (including SQLite and Puppeteer/Chromium dependencies)
+RUN apk add --no-cache \
+      sqlite \
+      chromium \
+      nss \
+      freetype \
+      harfbuzz \
+      ca-certificates \
+      ttf-freefont
+
+# Set environment variable for Chromium binary location
+ENV CHROME_BIN=/usr/bin/chromium-browser
 
 # All dependencies stage
 FROM base AS deps
@@ -42,4 +52,4 @@ USER node
 EXPOSE 8080
 
 # Start server
-CMD ["node", "./bin/server.js"]
+CMD ["sh", "-c", "node ace migration:run --force && node ./bin/server.js"]
