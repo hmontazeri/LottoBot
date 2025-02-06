@@ -52,4 +52,4 @@ USER node
 EXPOSE 8080
 
 # Start server
-CMD ["node ./bin/server.js"]
+CMD ["node", "./bin/server.js"]
