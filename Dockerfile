@@ -1,5 +1,5 @@
 # Base image
-FROM node:lts-alpine AS base
+FROM node:22-alpine AS base
 
 # Install system dependencies (including SQLite and Puppeteer/Chromium dependencies)
 RUN apk add --no-cache \
