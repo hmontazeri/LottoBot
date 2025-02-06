@@ -10,14 +10,12 @@
 
 import router from '@adonisjs/core/services/router'
 import server from '@adonisjs/core/services/server'
-// import './cron.ts'
-// start/cron.ts
-import cron from 'node-cron'
 import { Logger } from '@adonisjs/core/logger'
+import cron from 'node-cron'
+// setup node cron
 import TelegramsController from '#controllers/telegrams_controller'
 
 const logger = new Logger({ enabled: true, name: 'cron' })
-// setup node cron
 
 // Lotto 6aus49 nur am Mittwoch & Samstag um 19:30 Uhr senden
 cron.schedule('30 19 * * 3,6', async () => {
