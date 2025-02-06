@@ -52,4 +52,4 @@ USER node
 EXPOSE 8080
 
 # Start server
-CMD ["sh", "-c", "node ace migration:run --force && node ./bin/server.js"]
+CMD ["node ./bin/server.js"]
