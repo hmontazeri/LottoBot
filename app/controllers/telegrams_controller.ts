@@ -5,23 +5,45 @@ import User from '#models/user'
 
 const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`
 
-const launchOptions: puppeteer.LaunchOptions & { args: string[]; executablePath?: string } = {
-  headless: true,
-  args: [
-    '--no-sandbox',
-    '--disable-setuid-sandbox',
-    '--disable-dev-shm-usage', // Add this for better memory management
-    '--single-process', // Might help in some environments
-  ],
-  protocolTimeout: 120000, // Increased timeout to 2 minutes
+// Shared browser instance management
+let browserInstance: puppeteer.Browser | null = null
+
+const getBrowser = async () => {
+  if (!browserInstance || !browserInstance.isConnected()) {
+    const launchOptions: puppeteer.LaunchOptions & { args: string[]; executablePath?: string } = {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--single-process',
+        '--disable-gpu',
+        '--memory-pressure-off',
+      ],
+      protocolTimeout: 180000, // 3 minutes
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+      launchOptions.executablePath = '/usr/bin/chromium-browser'
+    }
+
+    browserInstance = await puppeteer.launch(launchOptions)
+  }
+  return browserInstance
 }
 
-if (process.env.NODE_ENV === 'production') {
-  launchOptions.executablePath = '/usr/bin/chromium-browser'
+const restartBrowser = async () => {
+  if (browserInstance) {
+    await browserInstance.close().catch(() => null)
+  }
+  browserInstance = null
+  return getBrowser()
 }
+
+// Restart browser every hour to prevent memory leaks
+setInterval(restartBrowser, 3600000)
 
 export default class TelegramsController {
-  // webhook method to handle incoming Telegram messages
   public async webhook({ request, response }: HttpContext) {
     const update = request.all()
 
@@ -32,39 +54,49 @@ export default class TelegramsController {
     const chatId = update.message.chat.id
     const text = update.message.text
 
-    if (text === '/start') {
-      await this.subscribeUser(update.message)
+    try {
+      if (text === '/start') {
+        await this.subscribeUser(update.message)
+        await this.sendMessage(
+          chatId,
+          `✅ Du erhältst nun automatisch die aktuellen Lottozahlen:\n` +
+            `• 6aus49: Mittwoch & Samstag um 19:30 Uhr\n` +
+            `• Eurojackpot: Dienstag & Freitag um 20:30 Uhr`
+        )
+      } else if (text === '/end') {
+        await this.unsubscribeUser(chatId)
+        await this.sendMessage(chatId, '❌ Du erhältst keine Lottozahlen mehr.')
+      } else if (text === '/time') {
+        await this.sendMessage(
+          chatId,
+          `Aktuelle Serverzeit: ${new Date().toLocaleString('de-DE', {
+            timeZone: 'Europe/Berlin',
+          })}`
+        )
+      } else if (text === '/6aus49') {
+        const result = await this.get6outOf49Numbers()
+        await this.sendMessage(
+          chatId,
+          `Ziehungsdatum: ${result.drawDate}\n` +
+            `6 aus 49 Lottozahlen: ${result.lottoNumbers.join(', ')}\n` +
+            `Superzahl: ${result.additionalNumber}\n\n` +
+            `Spiel 77: ${result.game77}\n` +
+            `Super 6: ${result.super6}`
+        )
+      } else if (text === '/eurojackpot') {
+        const result = await this.getEuroJackpotNumbers()
+        await this.sendMessage(
+          chatId,
+          `Ziehungsdatum: ${result.ziehungsdatum}\n` +
+            `EuroJackpot Gewinnzahlen: ${result.mainNumbers.join(', ')}\n` +
+            `Eurozahlen: ${result.eurozahlen.join(', ')}`
+        )
+      }
+    } catch (error) {
+      console.error('Error handling message:', error)
       await this.sendMessage(
         chatId,
-        `✅ Du erhältst nun automatisch die aktuellen Lottozahlen:
-        •	6aus49: Mittwoch & Samstag um 19:30 Uhr
-        •	Eurojackpot: Dienstag & Freitag um 20:30 Uhr`
-      )
-    } else if (text === '/end') {
-      await this.unsubscribeUser(chatId)
-      await this.sendMessage(chatId, '❌ Du erhältst keine Lottozahlen mehr.')
-    } else if (text === '/time') {
-      await this.sendMessage(
-        chatId,
-        `Aktuelle Serverzeit: ${new Date().toLocaleString('de-DE', {
-          timeZone: 'Europe/Berlin',
-        })}`
-      )
-    } else if (text === '/6aus49') {
-      const result = await this.get6outOf49Numbers()
-      await this.sendMessage(
-        chatId,
-        `Ziehungsdatum: ${result.drawDate}\n6 aus 49 Lottozahlen: ${result.lottoNumbers.join(
-          ', '
-        )}\nSuperzahl: ${result.additionalNumber}\n\nSpiel 77: ${result.game77}\nSuper 6: ${result.super6}`
-      )
-    } else if (text === '/eurojackpot') {
-      const result = await this.getEuroJackpotNumbers()
-      await this.sendMessage(
-        chatId,
-        `Ziehungsdatum: ${result.ziehungsdatum}\nEuroJackpot Gewinnzahlen: ${result.mainNumbers.join(
-          ', '
-        )}\nEurozahlen: ${result.eurozahlen.join(', ')}`
+        '⚠️ Ein Fehler ist aufgetreten. Bitte versuche es später erneut.'
       )
     }
 
@@ -96,143 +128,179 @@ export default class TelegramsController {
   }
 
   private async sendMessage(chatId: number, text: string) {
-    await axios.post(TELEGRAM_API, {
-      chat_id: chatId,
-      text,
-      parse_mode: 'Markdown',
-    })
+    try {
+      await axios.post(TELEGRAM_API, {
+        chat_id: chatId,
+        text,
+        parse_mode: 'Markdown',
+      })
+    } catch (error) {
+      console.error('Error sending Telegram message:', error)
+    }
   }
 
   public async sendLottoResults() {
-    const users = await User.query().where('active', true)
-    if (users.length === 0) return
+    try {
+      const users = await User.query().where('active', true)
+      if (users.length === 0) return
 
-    const today = new Date().getDay() // Holt den aktuellen Wochentag (0 = Sonntag, 1 = Montag, ...)
+      const today = new Date().getDay()
+      let message = ''
 
-    let message = ''
-
-    if (today === 3 || today === 6) {
-      // Mittwoch (3) oder Samstag (6)
-      const result = await this.get6outOf49Numbers()
-      message = `Ziehungsdatum: ${result.drawDate}\n6 aus 49 Lottozahlen: ${result.lottoNumbers.join(', ')}\nSuperzahl: ${result.additionalNumber}\n\nSpiel 77: ${result.game77}\nSuper 6: ${result.super6}`
-    } else if (today === 2 || today === 5) {
-      // Dienstag (2) oder Freitag (5)
-      const euroJackpotResult = await this.getEuroJackpotNumbers()
-      message = `Ziehungsdatum: ${euroJackpotResult.ziehungsdatum}\nEuroJackpot Gewinnzahlen: ${euroJackpotResult.mainNumbers.join(', ')}\nEurozahlen: ${euroJackpotResult.eurozahlen.join(', ')}`
-    }
-
-    if (message) {
-      for (const user of users) {
-        await this.sendMessage(user.telegram_id, `📢 Die Lottozahlen:\n\n${message}`)
+      if (today === 3 || today === 6) {
+        // Wednesday or Saturday
+        const result = await this.get6outOf49Numbers()
+        message =
+          `Ziehungsdatum: ${result.drawDate}\n` +
+          `6 aus 49 Lottozahlen: ${result.lottoNumbers.join(', ')}\n` +
+          `Superzahl: ${result.additionalNumber}\n\n` +
+          `Spiel 77: ${result.game77}\n` +
+          `Super 6: ${result.super6}`
+      } else if (today === 2 || today === 5) {
+        // Tuesday or Friday
+        const result = await this.getEuroJackpotNumbers()
+        message =
+          `Ziehungsdatum: ${result.ziehungsdatum}\n` +
+          `EuroJackpot Gewinnzahlen: ${result.mainNumbers.join(', ')}\n` +
+          `Eurozahlen: ${result.eurozahlen.join(', ')}`
       }
+
+      if (message) {
+        for (const user of users) {
+          await this.sendMessage(user.telegram_id, `📢 Die Lottozahlen:\n\n${message}`)
+        }
+      }
+    } catch (error) {
+      console.error('Error sending lotto results:', error)
     }
   }
 
   private async get6outOf49Numbers() {
-    // samstags um 19:25 Uhr sowie mittwochs um 18:25 Uhr
-    const browser = await puppeteer.launch(launchOptions)
-    const page = await browser.newPage()
+    let page: puppeteer.Page | null = null
+    try {
+      const browser = await getBrowser()
+      page = await browser.newPage()
 
-    // 🚀 Set User-Agent to mimic a real browser
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
-    )
+      await page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+      )
+      await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' })
+      await page.setDefaultNavigationTimeout(90000)
+      await page.setDefaultTimeout(90000)
 
-    // 🚀 Set additional headers to look human
-    await page.setExtraHTTPHeaders({
-      'Accept-Language': 'en-US,en;q=0.9',
-    })
+      // Stealth measures
+      await page.evaluateOnNewDocument(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => false })
+      })
 
-    const url = 'https://www.lotto.de/lotto-6aus49/lottozahlen'
-    await page.goto(url, { waitUntil: 'networkidle2' }) // Ensures most resources are loaded
+      const url = 'https://www.lotto.de/lotto-6aus49/lottozahlen'
+      const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 })
 
-    const lottoNumbers: string[] = await page.evaluate(() => {
-      return Array.from(
-        document.querySelectorAll(
-          '.DrawNumbersCollection__container:nth-child(1) .LottoBall__circle'
-        )
-      ).map((el) => el.textContent?.trim() || '')
-    })
+      if (!response?.ok()) {
+        throw new Error(`Failed to load page: ${response?.status()}`)
+      }
 
-    const additionalNumber: string = await page.evaluate(() => {
-      const element = document.querySelector(
+      // Retry logic for selectors
+      const retrySelector = async (selector: string, retries = 3, delay = 2000) => {
+        for (let i = 0; i < retries; i++) {
+          const element = await page?.$(selector)
+          if (element) return element
+          await new Promise((res) => setTimeout(res, delay))
+        }
+        throw new Error(`Selector not found: ${selector}`)
+      }
+
+      // Extract data
+      const lottoNumbers = await page?.$$eval(
+        '.DrawNumbersCollection__container:nth-child(1) .LottoBall__circle',
+        (elements) => elements.map((el) => el.textContent?.trim() || '')
+      )
+
+      const additionalNumber = await retrySelector(
         '.DrawNumbersCollection__container:nth-child(2) .LottoBall__circle'
-      )
-      return element ? element.textContent?.trim() || '' : ''
-    })
+      ).then((el) => el.evaluate((e) => e.textContent?.trim() || ''))
 
-    const game77: string = await page.evaluate(() => {
-      const element = document.querySelector(
+      const game77 = await retrySelector(
         '.WinningNumbersAdditionalGame:nth-child(1) span:last-child'
-      )
-      return element ? element.textContent?.trim() || '' : ''
-    })
+      ).then((el) => el.evaluate((e) => e.textContent?.trim() || ''))
 
-    const super6: string = await page.evaluate(() => {
-      const element = document.querySelector(
+      const super6 = await retrySelector(
         '.WinningNumbersAdditionalGame:nth-child(2) span:last-child'
+      ).then((el) => el.evaluate((e) => e.textContent?.trim() || ''))
+
+      const drawDate = await retrySelector('.WinningNumbers__date').then((el) =>
+        el.evaluate((e) => e.textContent?.trim() || '')
       )
-      return element ? element.textContent?.trim() || '' : ''
-    })
 
-    const drawDate: string = await page.evaluate(() => {
-      const element = document.querySelector('.WinningNumbers__date')
-      return element ? element.textContent?.trim() || '' : ''
-    })
-
-    await browser.close()
-    return {
-      drawDate,
-      lottoNumbers,
-      additionalNumber,
-      game77,
-      super6,
+      return { drawDate, lottoNumbers, additionalNumber, game77, super6 }
+    } catch (error) {
+      console.error('Error in get6outOf49Numbers:', error)
+      await restartBrowser()
+      throw error
+    } finally {
+      if (page && !page.isClosed()) {
+        await page.close().catch(() => null)
+      }
     }
   }
 
   private async getEuroJackpotNumbers() {
-    // jeden Dienstag und Freitag gegen 20 Uhr
-    const browser = await puppeteer.launch(launchOptions)
-    const page = await browser.newPage()
+    let page: puppeteer.Page | null = null
+    try {
+      const browser = await getBrowser()
+      page = await browser.newPage()
 
-    // 🚀 Set User-Agent to mimic a real browser
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
-    )
+      await page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+      )
+      await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' })
+      await page.setDefaultNavigationTimeout(90000)
+      await page.setDefaultTimeout(90000)
 
-    // 🚀 Set additional headers to look human
-    await page.setExtraHTTPHeaders({
-      'Accept-Language': 'en-US,en;q=0.9',
-    })
+      // Stealth measures
+      await page.evaluateOnNewDocument(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => false })
+      })
 
-    const url = 'https://www.eurojackpot.de/'
-    await page.goto(url, { waitUntil: 'networkidle2' })
+      const url = 'https://www.eurojackpot.de/'
+      const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 })
 
-    const ziehungsdatum: string = await page.evaluate(() => {
-      const dateElement = document.querySelector('select[formcontrolname="datum"] option')
-      return dateElement ? dateElement.textContent?.trim() || '' : ''
-    })
+      if (!response?.ok()) {
+        throw new Error(`Failed to load page: ${response?.status()}`)
+      }
 
-    const mainNumbers: string[] = await page.evaluate(() => {
-      return Array.from(document.querySelectorAll('.winning-number'))
-        .slice(0, 5) // First 5 numbers
-        .map((el) => el.textContent?.trim() || '')
-    })
+      // Retry logic
+      const retrySelector = async (selector: string, retries = 3, delay = 2000) => {
+        for (let i = 0; i < retries; i++) {
+          const element = await page?.$(selector)
+          if (element) return element
+          await new Promise((res) => setTimeout(res, delay))
+        }
+        throw new Error(`Selector not found: ${selector}`)
+      }
 
-    const eurozahlen: string[] = await page.evaluate(() => {
-      return Array.from(document.querySelectorAll('.winning-number'))
-        .slice(5, 7) // The next 2 numbers
-        .map((el) => el.textContent?.trim() || '')
-    })
+      // Extract data
+      const ziehungsdatum = await retrySelector('select[formcontrolname="datum"] option').then(
+        (el) => el.evaluate((e) => e.textContent?.trim() || '')
+      )
 
-    // 🚀 8. Close the browser
-    await browser.close()
+      const mainNumbers = await page.$$eval('.winning-number', (elements) =>
+        elements.slice(0, 5).map((el) => el.textContent?.trim() || '')
+      )
 
-    // 🚀 9. Return JSON response
-    return {
-      ziehungsdatum,
-      mainNumbers,
-      eurozahlen,
+      const eurozahlen = await page.$$eval('.winning-number', (elements) =>
+        elements.slice(5, 7).map((el) => el.textContent?.trim() || '')
+      )
+
+      return { ziehungsdatum, mainNumbers, eurozahlen }
+    } catch (error) {
+      console.error('Error in getEuroJackpotNumbers:', error)
+      await restartBrowser()
+      throw error
+    } finally {
+      if (page && !page.isClosed()) {
+        await page.close().catch(() => null)
+      }
     }
   }
 }
