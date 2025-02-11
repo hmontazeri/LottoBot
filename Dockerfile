@@ -1,55 +1,69 @@
-# Base image
+# Use Node.js 22 with Alpine (smaller image)
 FROM node:22-alpine AS base
 
-# Install system dependencies (including SQLite and Puppeteer/Chromium dependencies)
+# Install system dependencies for Chromium and fonts
 RUN apk add --no-cache \
-      sqlite \
-      chromium \
-      nss \
-      freetype \
-      harfbuzz \
-      ca-certificates \
-      ttf-freefont
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    ttf-liberation \
+    noto-fonts \
+    noto-fonts-cjk \
+    noto-fonts-emoji \
+    fontconfig \
+    # Additional dependencies for headless Chrome
+    udev \
+    tzdata \
+    # Required libraries for Chromium
+    libstdc++ \
+    # Development headers for native modules
+    python3 \
+    make \
+    g++ \
+    # SQLite dependencies
+    sqlite \
+    && fc-cache -f
 
-# Set environment variable for Chromium binary location
-ENV CHROME_BIN=/usr/bin/chromium-browser
+# Configure environment variables
+ENV CHROME_BIN=/usr/bin/chromium-browser \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
+    NODE_ENV=production \
+    # Needed for headless Chrome in container
+    CHROMIUM_FLAGS="--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --single-process --disable-gpu --disable-software-rasterizer --disable-features=ImprovedCookieControls,LazyFrameLoading,GlobalMediaControls,DestroyProfileOnBrowserClose,MediaRouter --enable-features=NetworkServiceInProcess"
 
-# All dependencies stage
+# Create a non-root user and required directories
+RUN mkdir -p /home/node/app \
+    && chown -R node:node /home/node \
+    && mkdir -p /sqlite \
+    && chown node:node /sqlite
+
+# Switch to non-root user
+USER node
+WORKDIR /home/node/app
+
+# Copy package files first for better layer caching
 FROM base AS deps
-WORKDIR /app
-ADD package.json package-lock.json ./
-RUN npm ci
-
-# Production dependencies stage
-FROM base AS production-deps
-WORKDIR /app
-ADD package.json package-lock.json ./
+COPY --chown=node:node package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 # Build stage
 FROM base AS build
-WORKDIR /app
-COPY --from=deps /app/node_modules /app/node_modules
-ADD . .
+COPY --chown=node:node . .
+COPY --from=deps --chown=node:node /home/node/app/node_modules ./node_modules
 RUN node ace build
 
-# Production stage
+# Production image
 FROM base
-ENV NODE_ENV=production
-WORKDIR /app
+COPY --chown=node:node --from=build /home/node/app/build ./build
+COPY --chown=node:node --from=deps /home/node/app/node_modules ./node_modules
 
-# Ensure the SQLite database path exists
+# Ensure SQLite directory exists
 RUN mkdir -p /sqlite && chown node:node /sqlite
 
-# Copy production dependencies
-COPY --from=production-deps /app/node_modules /app/node_modules
-COPY --from=build /app/build /app
-
-# Set user permissions
-USER node
-
-# Expose port
+# Expose port and start
 EXPOSE 8080
-
-# Start server
-CMD ["node", "./bin/server.js"]
+CMD ["node", "./build/bin/server.js"]
