@@ -7,8 +7,13 @@ const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOK
 
 const launchOptions: puppeteer.LaunchOptions & { args: string[]; executablePath?: string } = {
   headless: true,
-  args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  protocolTimeout: 60000,
+  args: [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage', // Add this for better memory management
+    '--single-process', // Might help in some environments
+  ],
+  protocolTimeout: 120000, // Increased timeout to 2 minutes
 }
 
 if (process.env.NODE_ENV === 'production') {
