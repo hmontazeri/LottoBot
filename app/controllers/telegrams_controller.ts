@@ -19,12 +19,15 @@ const getBrowser = async () => {
         '--single-process',
         '--disable-gpu',
         '--memory-pressure-off',
+        '--enable-features=NetworkService',
+        '--disable-software-rasterizer',
+        '--disable-extensions',
       ],
       protocolTimeout: 180000, // 3 minutes
     }
 
     if (process.env.NODE_ENV === 'production') {
-      launchOptions.executablePath = '/usr/bin/chromium-browser'
+      launchOptions.executablePath = process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser'
     }
 
     browserInstance = await puppeteer.launch(launchOptions)
