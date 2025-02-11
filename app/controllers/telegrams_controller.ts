@@ -5,10 +5,10 @@ import User from '#models/user'
 
 const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`
 
-const launchOptions: puppeteer.LaunchOptions & { args: string[]; executablePath?: string } = {
+const launchOptions: puppeteer.LaunchOptions & { executablePath?: string } = {
   headless: true,
-  args: ['--no-sandbox', '--disable-setuid-sandbox'],
   protocolTimeout: 60000,
+  // args: ['--no-sandbox', '--disable-setuid-sandbox'],
 }
 
 if (process.env.NODE_ENV === 'production') {
