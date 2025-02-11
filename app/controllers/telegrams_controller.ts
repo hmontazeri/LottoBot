@@ -11,9 +11,9 @@ const launchOptions: puppeteer.LaunchOptions & { args: string[]; executablePath?
   protocolTimeout: 60000,
 }
 
-// if (process.env.NODE_ENV === 'production') {
-//   launchOptions.executablePath = process.env.CHROME_BIN || '/usr/bin/chromium-browser'
-// }
+if (process.env.NODE_ENV === 'production') {
+  launchOptions.executablePath = '/usr/bin/chromium-browser'
+}
 
 export default class TelegramsController {
   // webhook method to handle incoming Telegram messages
