@@ -8,6 +8,7 @@ const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOK
 const launchOptions: puppeteer.LaunchOptions & { args: string[]; executablePath?: string } = {
   headless: true,
   args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  protocolTimeout: 60000,
 }
 
 if (process.env.NODE_ENV === 'production') {
