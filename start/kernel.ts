@@ -24,7 +24,7 @@ cron.schedule('30 19 * * 3,6', async () => {
   try {
     await new TelegramsController().sendLottoResults()
   } catch (error) {
-    logger.error('Error sending lotto results:', error)
+    logger.error('Error sending lotto results:' + error)
   }
 })
 

@@ -44,6 +44,22 @@ export default class TelegramsController {
           timeZone: 'Europe/Berlin',
         })}`
       )
+    } else if (text === '/6aus49') {
+      const result = await this.get6outOf49Numbers()
+      await this.sendMessage(
+        chatId,
+        `Ziehungsdatum: ${result.drawDate}\n6 aus 49 Lottozahlen: ${result.lottoNumbers.join(
+          ', '
+        )}\nSuperzahl: ${result.additionalNumber}\n\nSpiel 77: ${result.game77}\nSuper 6: ${result.super6}`
+      )
+    } else if (text === '/eurojackpot') {
+      const result = await this.getEuroJackpotNumbers()
+      await this.sendMessage(
+        chatId,
+        `Ziehungsdatum: ${result.ziehungsdatum}\nEuroJackpot Gewinnzahlen: ${result.mainNumbers.join(
+          ', '
+        )}\nEurozahlen: ${result.eurozahlen.join(', ')}`
+      )
     }
 
     return response.json({ status: 'ok' })
