@@ -12,7 +12,8 @@ RUN apk add --no-cache \
       ttf-freefont
 
 # Set environment variable for Chromium binary location
-ENV CHROME_BIN=/usr/bin/chromium-browser
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # All dependencies stage
 FROM base AS deps
