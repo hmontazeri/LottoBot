@@ -13,6 +13,7 @@ const getBrowser = async () => {
     const launchOptions: puppeteer.LaunchOptions & { args: string[]; executablePath?: string } = {
       headless: true,
       args: [
+        '--headless',
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
