@@ -18,7 +18,7 @@ import TelegramsController from '#controllers/telegrams_controller'
 const logger = new Logger({ enabled: true, name: 'cron' })
 
 // Lotto 6aus49 nur am Mittwoch & Samstag um 19:30 Uhr senden
-cron.schedule('30 19 * * 3,6', async () => {
+cron.schedule('30 20 * * 3,6', async () => {
   // 3 = Mittwoch, 6 = Samstag
   logger.info(`Running Lotto 6aus49 task ${new Date().toLocaleString()})`)
   try {

@@ -32,7 +32,7 @@ export default class TelegramsController {
         await this.sendMessage(
           chatId,
           `✅ Du erhältst nun automatisch die aktuellen Lottozahlen:\n` +
-            `• 6aus49: Mittwoch & Samstag um 19:30 Uhr\n` +
+            `• 6aus49: Mittwoch & Samstag um 20:30 Uhr\n` +
             `• Eurojackpot: Dienstag & Freitag um 20:30 Uhr`
         )
       } else if (text === '/end') {
@@ -111,7 +111,8 @@ export default class TelegramsController {
     const users = await User.query().where('active', true)
     if (users.length === 0) return
 
-    const today = new Date().getDay() // Holt den aktuellen Wochentag (0 = Sonntag, 1 = Montag, ...)
+    const nowInBerlin = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Berlin' }))
+    const today = nowInBerlin.getDay()
 
     let message = ''
 
