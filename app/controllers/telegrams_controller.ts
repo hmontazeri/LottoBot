@@ -63,6 +63,16 @@ export default class TelegramsController {
             `EuroJackpot Gewinnzahlen: ${result.mainNumbers.join(', ')}\n` +
             `Eurozahlen: ${result.eurozahlen.join(', ')}`
         )
+      } else if (text === '/stats') {
+        // return all users count who are subscribed and also the the total count of users
+        const activeUsersCount = await User.query().where('active', true)
+        const totalUsersCount = await User.query()
+        await this.sendMessage(
+          chatId,
+          `📊 Statistiken:\n\n` +
+            `Aktive Abonnenten: ${activeUsersCount.length}\n` +
+            `Gesamtzahl der Abonnenten: ${totalUsersCount.length}`
+        )
       }
     } catch (error) {
       console.error('Error handling message:', error)
