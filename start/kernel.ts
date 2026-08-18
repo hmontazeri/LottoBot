@@ -17,27 +17,29 @@ import TelegramsController from '#controllers/telegrams_controller'
 
 const logger = new Logger({ enabled: true, name: 'cron' })
 
-// Lotto 6aus49 nur am Mittwoch & Samstag um 19:30 Uhr senden
-cron.schedule('30 20 * * 3,6', async () => {
-  // 3 = Mittwoch, 6 = Samstag
-  logger.info(`Running Lotto 6aus49 task ${new Date().toLocaleString()})`)
-  try {
-    await new TelegramsController().sendLottoResults()
-  } catch (error) {
-    logger.error('Error sending lotto results:' + error)
-  }
-})
+if (process.env.NODE_ENV !== 'test') {
+  // Lotto 6aus49 nur am Mittwoch & Samstag um 19:30 Uhr senden
+  cron.schedule('30 20 * * 3,6', async () => {
+    // 3 = Mittwoch, 6 = Samstag
+    logger.info(`Running Lotto 6aus49 task ${new Date().toLocaleString()})`)
+    try {
+      await new TelegramsController().sendLottoResults()
+    } catch (error) {
+      logger.error('Error sending lotto results:' + error)
+    }
+  })
 
-// Eurojackpot nur am Dienstag & Freitag um 20:30 Uhr senden
-cron.schedule('30 20 * * 2,5', async () => {
-  // 2 = Dienstag, 5 = Freitag
-  logger.info(`Running Eurojackpot task ${new Date().toLocaleString()})`)
-  try {
-    await new TelegramsController().sendLottoResults()
-  } catch (error) {
-    logger.error('Error sending lotto results:', error)
-  }
-})
+  // Eurojackpot nur am Dienstag & Freitag um 20:30 Uhr senden
+  cron.schedule('30 20 * * 2,5', async () => {
+    // 2 = Dienstag, 5 = Freitag
+    logger.info(`Running Eurojackpot task ${new Date().toLocaleString()})`)
+    try {
+      await new TelegramsController().sendLottoResults()
+    } catch (error) {
+      logger.error('Error sending lotto results:', error)
+    }
+  })
+}
 
 /**
  * The error handler is used to convert an exception

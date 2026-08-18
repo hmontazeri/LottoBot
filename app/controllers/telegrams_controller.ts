@@ -143,7 +143,7 @@ export default class TelegramsController {
     }
   }
 
-  private async get6outOf49Numbers() {
+  public async get6outOf49Numbers() {
     // samstags um 19:25 Uhr sowie mittwochs um 18:25 Uhr
     const browser = await puppeteer.launch(launchOptions)
     const page = await browser.newPage()
@@ -205,7 +205,7 @@ export default class TelegramsController {
     }
   }
 
-  private async getEuroJackpotNumbers() {
+  public async getEuroJackpotNumbers() {
     // jeden Dienstag und Freitag gegen 20 Uhr
     const browser = await puppeteer.launch(launchOptions)
     const page = await browser.newPage()
@@ -224,20 +224,27 @@ export default class TelegramsController {
     await page.goto(url, { waitUntil: 'networkidle2' })
 
     const ziehungsdatum: string = await page.evaluate(() => {
-      const dateElement = document.querySelector('select[formcontrolname="datum"] option')
+      const dateElement = document.querySelector('div[aria-live="polite"] p')
       return dateElement ? dateElement.textContent?.trim() || '' : ''
     })
 
     const mainNumbers: string[] = await page.evaluate(() => {
-      return Array.from(document.querySelectorAll('.winning-number'))
-        .slice(0, 5) // First 5 numbers
-        .map((el) => el.textContent?.trim() || '')
+      const container = document.querySelector('div[aria-live="polite"]')
+      return container
+        ? Array.from(container.querySelectorAll('div[class*="rounded-full"] span')).map(
+            (el) => el.textContent?.trim() || ''
+          )
+        : []
     })
 
     const eurozahlen: string[] = await page.evaluate(() => {
-      return Array.from(document.querySelectorAll('.winning-number'))
-        .slice(5, 7) // The next 2 numbers
-        .map((el) => el.textContent?.trim() || '')
+      const containers = document.querySelectorAll('div[aria-live="polite"]')
+      const container = containers[1]
+      return container
+        ? Array.from(container.querySelectorAll('div[class*="rounded-full"] span')).map(
+            (el) => el.textContent?.trim() || ''
+          )
+        : []
     })
 
     // 🚀 8. Close the browser
