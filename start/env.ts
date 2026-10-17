@@ -15,7 +15,9 @@ export default await Env.create(new URL('../', import.meta.url), {
   NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
   PORT: Env.schema.number(),
   APP_KEY: Env.schema.string(),
-  HOST: Env.schema.string({ format: 'host' }),
+  // Optional: Coolify sets HOST to the application id, which must never be used
+  // as the bind address (see config/server.ts). The server always binds 0.0.0.0.
+  HOST: Env.schema.string.optional({ format: 'host' }),
   LOG_LEVEL: Env.schema.string(),
 
   /*
